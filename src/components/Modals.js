@@ -54,7 +54,6 @@ export default function Modals({ selectedProduct, onClose, tinhThoiGianCachDay, 
     };
   }, [selectedProduct, onClose]);
 
-  // BỔ SUNG: Hàm click nút bấm chuyển đổi slide ảnh thủ công
   const chuyenAnhSlide = (huong) => {
     if (!slideRef.current) return;
     const doRongKhung = slideRef.current.clientWidth;
@@ -77,7 +76,10 @@ export default function Modals({ selectedProduct, onClose, tinhThoiGianCachDay, 
   };
 
   const danhSachAnh = selectedProduct ? layMangHinhAnh(selectedProduct.anh) : [];
-  const tongSoMuc = danhSachAnh.length;
+  
+  // TÍNH TOÁN TỔNG SỐ MỤC MEDIA (Bao gồm cả Video + Ảnh để hiển thị thanh đếm chính xác)
+  const coVideo = selectedProduct && selectedProduct.videoUrl;
+  const tongSoMucMedia = danhSachAnh.length + (coVideo ? 1 : 0);
 
   return (
     <>
@@ -96,16 +98,30 @@ export default function Modals({ selectedProduct, onClose, tinhThoiGianCachDay, 
             </button>
 
             <div className="overflow-y-auto flex-1 no-scrollbar">
-              {/* VÙNG ẢNH: Đã tối ưu hóa bộ nút chuyển slide ảnh hai bên */}
+              {/* KHU VỰC TRÌNH CHIẾU MEDIA (Đã chèn khung iframe Video mượt mà) */}
               <div className="relative aspect-[16/10] bg-slate-100 image-slider-container group">
                 <div ref={slideRef} className="w-full h-full flex overflow-x-auto snap-x snap-mandatory no-scrollbar">
+                  
+                  {/* ĐÃ BỔ SUNG: Nếu có link videoUrl từ Google Sheet, chèn khung phát ngay ô đầu tiên */}
+                  {coVideo && (
+                    <div className="w-full h-full flex-shrink-0 snap-start snap-always relative">
+                      <iframe 
+                        className="w-full h-full border-0" 
+                        src={selectedProduct.videoUrl} 
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                        allowFullScreen
+                      ></iframe>
+                    </div>
+                  )}
+
+                  {/* Vòng lặp kết xuất danh sách hình ảnh thực tế */}
                   {danhSachAnh.map((url, idx) => (
-                    <img key={idx} src={url} className="w-full h-full object-cover flex-shrink-0 snap-start" alt="Hình thực tế" />
+                    <img key={idx} src={url} className="w-full h-full object-cover flex-shrink-0 snap-start snap-always" alt="Hình ảnh khảo sát nhà đất thật" />
                   ))}
                 </div>
 
-                {/* BỔ SUNG: Cặp mũi tên điều hướng hai bên hông ảnh khi có nhiều ảnh */}
-                {tongSoMuc > 1 && (
+                {/* Các phím mũi tên điều hướng slide */}
+                {tongSoMucMedia > 1 && (
                   <>
                     <button 
                       onClick={() => chuyenAnhSlide('trai')} 
@@ -119,9 +135,10 @@ export default function Modals({ selectedProduct, onClose, tinhThoiGianCachDay, 
                     >
                       ›
                     </button>
-                    {/* Nhãn hiển thị số lượng hình ảnh tổng quan */}
+                    
+                    {/* Nhãn đếm tổng số lượng Media có trong giỏ hàng */}
                     <div className="bg-slate-900/70 backdrop-blur-sm text-white text-[10px] font-bold px-2.5 py-1 rounded-md absolute top-4 left-4 z-10 pointer-events-none flex items-center gap-1 shadow-sm uppercase tracking-wider">
-                      <Layers className="w-3 h-3 text-amber-400" /> Giỏ hàng: {tongSoMuc} Ảnh
+                      <Layers className="w-3 h-3 text-amber-400" /> Giỏ hàng: {coVideo ? '1 Video & ' : ''}{danhSachAnh.length} Ảnh
                     </div>
                   </>
                 )}

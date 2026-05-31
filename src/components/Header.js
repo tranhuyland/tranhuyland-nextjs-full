@@ -13,7 +13,7 @@ export default function Header() {
           <img src="https://i.postimg.cc/JhKg8VZ9/70554272-47DB-4D3A-A1AE-2782EFCAF00F.png" alt="Trần Huy Land" className="h-9 sm:h-11 w-auto object-contain select-none" />
           <div>
             <h1 className="font-extrabold text-slate-900 text-base sm:text-lg tracking-tight">TRẦN HUY LAND</h1>
-            <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Mua Bán Nhà Phố • Đất Nền Đà Nẵng</p>
+            <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Mua Bán Nhà Phố • Đất Nền TP Đà Nẵng</p>
           </div>
         </div>
 

@@ -132,9 +132,8 @@ export default function ListingSection({ initialData }) {
   };
 
   const handleSelectProduct = (item) => {
-    setSelectedProduct(item);
-    window.history.pushState({ id: item.id }, "", `?id=${item.id}`);
-  };
+  window.location.href = `/nha-dat/${item.id}`;
+};
 
   const handleCloseModal = () => {
     setSelectedProduct(null);

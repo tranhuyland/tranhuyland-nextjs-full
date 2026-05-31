@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { X, ShieldCheck, MapPin, Calendar } from 'lucide-react';
+import { X, ShieldCheck, MapPin, Calendar, Layers } from 'lucide-react';
 
 export default function Modals({ selectedProduct, onClose, tinhThoiGianCachDay, layMangHinhAnh }) {
   const [showKyGui, setShowKyGui] = useState(false);
@@ -9,6 +9,7 @@ export default function Modals({ selectedProduct, onClose, tinhThoiGianCachDay, 
   const [kgGia, setKgGia] = useState('');
   
   const khungModalRef = useRef(null);
+  const slideRef = useRef(null);
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
 
@@ -18,7 +19,6 @@ export default function Modals({ selectedProduct, onClose, tinhThoiGianCachDay, 
     return () => window.removeEventListener('open-modal-kygui', open);
   }, []);
 
-  // KHẮC PHỤC TRIỆT ĐỂ LỖI GIẬT NHÁY HÌNH TRÊN SAFARI DI ĐỘNG
   useEffect(() => {
     const modalElement = khungModalRef.current;
     if (!modalElement) return;
@@ -33,20 +33,11 @@ export default function Modals({ selectedProduct, onClose, tinhThoiGianCachDay, 
 
       const touchEndX = e.changedTouches[0].screenX;
       const touchEndY = e.changedTouches[0].screenY;
-      
       const khoangCachX = touchEndX - touchStartX.current;
       const khoangCachY = Math.abs(touchEndY - touchStartY.current);
 
-      // Nhận diện hành động chủ động vuốt ngang để đóng cửa sổ
       if (khoangCachX > 80 && khoangCachY < 35) {
-        // Giải pháp cốt lõi: Nếu điểm chạm xuất phát nằm sát rìa trái màn hình (< 50px),
-        // đây hoàn toàn là cử chỉ Back mặc định của hệ thống iOS.
-        // Ta dùng lệnh return để chấm dứt Javascript, nhường trọn vẹn tiến trình cho Safari tự render lịch sử.
-        if (touchStartX.current < 50) {
-          return; 
-        }
-        
-        // Nếu người dùng vuốt từ lửng giữa màn hình sang phải, đóng modal mượt mà qua state của React
+        if (touchStartX.current < 50) return; 
         onClose();
       }
     };
@@ -54,9 +45,7 @@ export default function Modals({ selectedProduct, onClose, tinhThoiGianCachDay, 
     modalElement.addEventListener('touchstart', handleTouchStart, { passive: true });
     modalElement.addEventListener('touchend', handleTouchEnd, { passive: true });
 
-    if (selectedProduct) {
-      document.body.style.overflow = 'hidden';
-    }
+    if (selectedProduct) document.body.style.overflow = 'hidden';
 
     return () => {
       modalElement.removeEventListener('touchstart', handleTouchStart);
@@ -64,6 +53,16 @@ export default function Modals({ selectedProduct, onClose, tinhThoiGianCachDay, 
       document.body.style.overflow = '';
     };
   }, [selectedProduct, onClose]);
+
+  // BỔ SUNG: Hàm click nút bấm chuyển đổi slide ảnh thủ công
+  const chuyenAnhSlide = (huong) => {
+    if (!slideRef.current) return;
+    const doRongKhung = slideRef.current.clientWidth;
+    slideRef.current.scrollBy({ 
+      left: huong === 'phai' ? doRongKhung : -doRongKhung, 
+      behavior: 'smooth' 
+    });
+  };
 
   const closeKyGui = () => setShowKyGui(false);
 
@@ -78,10 +77,10 @@ export default function Modals({ selectedProduct, onClose, tinhThoiGianCachDay, 
   };
 
   const danhSachAnh = selectedProduct ? layMangHinhAnh(selectedProduct.anh) : [];
+  const tongSoMuc = danhSachAnh.length;
 
   return (
     <>
-      {/* 1. CHI TIẾT SẢN PHẨM POPUP */}
       {selectedProduct && (
         <div className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div 
@@ -97,13 +96,37 @@ export default function Modals({ selectedProduct, onClose, tinhThoiGianCachDay, 
             </button>
 
             <div className="overflow-y-auto flex-1 no-scrollbar">
-              <div className="relative aspect-[16/10] bg-slate-100 image-slider-container">
-                <div className="w-full h-full flex overflow-x-auto snap-x snap-mandatory no-scrollbar">
+              {/* VÙNG ẢNH: Đã tối ưu hóa bộ nút chuyển slide ảnh hai bên */}
+              <div className="relative aspect-[16/10] bg-slate-100 image-slider-container group">
+                <div ref={slideRef} className="w-full h-full flex overflow-x-auto snap-x snap-mandatory no-scrollbar">
                   {danhSachAnh.map((url, idx) => (
                     <img key={idx} src={url} className="w-full h-full object-cover flex-shrink-0 snap-start" alt="Hình thực tế" />
                   ))}
                 </div>
+
+                {/* BỔ SUNG: Cặp mũi tên điều hướng hai bên hông ảnh khi có nhiều ảnh */}
+                {tongSoMuc > 1 && (
+                  <>
+                    <button 
+                      onClick={() => chuyenAnhSlide('trai')} 
+                      className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 bg-black/50 hover:bg-black/70 backdrop-blur-sm text-white rounded-full flex items-center justify-center font-bold text-lg active:scale-90 select-none transition-opacity"
+                    >
+                      ‹
+                    </button>
+                    <button 
+                      onClick={() => chuyenAnhSlide('phai')} 
+                      className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 bg-black/50 hover:bg-black/70 backdrop-blur-sm text-white rounded-full flex items-center justify-center font-bold text-lg active:scale-90 select-none transition-opacity"
+                    >
+                      ›
+                    </button>
+                    {/* Nhãn hiển thị số lượng hình ảnh tổng quan */}
+                    <div className="bg-slate-900/70 backdrop-blur-sm text-white text-[10px] font-bold px-2.5 py-1 rounded-md absolute top-4 left-4 z-10 pointer-events-none flex items-center gap-1 shadow-sm uppercase tracking-wider">
+                      <Layers className="w-3 h-3 text-amber-400" /> Giỏ hàng: {tongSoMuc} Ảnh
+                    </div>
+                  </>
+                )}
               </div>
+
               <div className="p-6">
                 <div className="flex items-center justify-between">
                   <span className="bg-amber-100 text-amber-900 font-black px-3 py-1 rounded-xl shadow-sm">{selectedProduct.gia}</span>
@@ -135,7 +158,7 @@ export default function Modals({ selectedProduct, onClose, tinhThoiGianCachDay, 
         </div>
       )}
 
-      {/* 2. KÝ GỬI NHANH POPUP */}
+      {/* POPUP KÝ GỬI */}
       {showKyGui && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-sm rounded-2xl p-6 relative text-slate-800">

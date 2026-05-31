@@ -2,6 +2,7 @@ import ListingSection from "@/components/ListingSection";
 import { getBdsData } from "@/lib/googleSheets";
 import { notFound } from "next/navigation";
 
+
 const DISTRICTS = {
   "hai-chau": "Hải Châu",
   "cam-le": "Cẩm Lệ",

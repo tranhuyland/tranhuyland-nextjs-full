@@ -18,6 +18,32 @@ export default function ListingSection({ initialData }) {
       .then(data => { if (data?.length > 0) setDanhSachBds(data); });
   }, []);
 
+  // ĐỒNG BỘ: Lắng nghe sự kiện bấm nút Back hệ thống trên điện thoại để đóng Modal
+  useEffect(() => {
+    const handlePopState = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const idParam = urlParams.get('id');
+      if (!idParam) {
+        setSelectedProduct(null);
+      } else {
+        const product = danhSachBds.find(p => p.id === parseInt(idParam));
+        if (product) setSelectedProduct(product);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    
+    // Kiểm tra nếu người dùng vào thẳng link có sẵn ID sản phẩm
+    const urlParams = new URLSearchParams(window.location.search);
+    const idParam = urlParams.get('id');
+    if (idParam && danhSachBds.length > 0) {
+      const product = danhSachBds.find(p => p.id === parseInt(idParam));
+      if (product) setSelectedProduct(product);
+    }
+
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [danhSachBds]);
+
   useEffect(() => {
     let kq = [...danhSachBds];
     if (filters.khuvuc !== 'all') kq = kq.filter(i => i.khuVuc === filters.khuvuc);
@@ -30,7 +56,6 @@ export default function ListingSection({ initialData }) {
     setTrangHienTai(1);
   }, [filters, danhSachBds]);
 
-  // BỔ SUNG: Khôi phục 2 hàm xử lý chuỗi và thời gian bị thiếu gây crash giao diện
   const chuyenDoiNgayThangChuan = (ngayDangStr) => {
     if (!ngayDangStr) return null;
     const chuoiSach = ngayDangStr.toString().replace(/[\r\n\t]/g, "").trim();
@@ -69,6 +94,17 @@ export default function ListingSection({ initialData }) {
     return chuoiAnh.split(',').map(url => url.trim()).filter(url => url !== '');
   };
 
+  // SỬA: Khi kích chọn sản phẩm, sinh ra URL mới tương ứng (?id=...) không làm tải lại trang
+  const handleSelectProduct = (item) => {
+    setSelectedProduct(item);
+    window.history.pushState({ id: item.id }, "", `?id=${item.id}`);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedProduct(null);
+    window.history.pushState({}, "", window.location.pathname);
+  };
+
   const batDau = (trangHienTai - 1) * ITEMS_PER_PAGE;
   const dataTrangHienTai = filteredData.slice(batDau, batDau + ITEMS_PER_PAGE);
 
@@ -80,7 +116,7 @@ export default function ListingSection({ initialData }) {
             const danhSachAnh = layMangHinhAnh(item.anh);
             const anhDaiDien = danhSachAnh.length > 0 ? danhSachAnh[0] : 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=600&q=80';
             return (
-              <article key={item.id} onClick={() => setSelectedProduct(item)} className="bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl transition-all cursor-pointer">
+              <article key={item.id} onClick={() => handleSelectProduct(item)} className="bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl transition-all cursor-pointer">
                 <div className="relative aspect-[4/3] bg-slate-100">
                   <img src={anhDaiDien} alt={item.tieude} className="w-full h-full object-cover" />
                   <span className="absolute bottom-3 right-3 bg-slate-900 text-white font-extrabold text-sm px-3 py-1 rounded-xl shadow-md">{item.gia}</span>
@@ -94,10 +130,9 @@ export default function ListingSection({ initialData }) {
         </div>
       </main>
 
-      {/* Truyền đầy đủ các hàm xử lý dữ liệu xuống Modal */}
       <Modals 
         selectedProduct={selectedProduct} 
-        onClose={() => setSelectedProduct(null)} 
+        onClose={handleCloseModal} 
         tinhThoiGianCachDay={tinhThoiGianCachDay}
         layMangHinhAnh={layMangHinhAnh}
       />

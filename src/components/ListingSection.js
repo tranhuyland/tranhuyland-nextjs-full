@@ -18,14 +18,16 @@ export default function ListingSection({ initialData }) {
       .then(data => { if (data?.length > 0) setDanhSachBds(data); });
   }, []);
 
-  // ĐỒNG BỘ: Lắng nghe sự kiện bấm nút Back hệ thống trên điện thoại để đóng Modal
+  // TỐI ƯU CHỐNG NHÁY: Đồng bộ trạng thái Modal mượt mà với lịch sử duyệt của Safari
   useEffect(() => {
-    const handlePopState = () => {
+    const handlePopState = (event) => {
       const urlParams = new URLSearchParams(window.location.search);
       const idParam = urlParams.get('id');
+      
       if (!idParam) {
+        // Nếu không có id trên URL nữa, đóng modal lập tức
         setSelectedProduct(null);
-      } else {
+      } else if (danhSachBds.length > 0) {
         const product = danhSachBds.find(p => p.id === parseInt(idParam));
         if (product) setSelectedProduct(product);
       }
@@ -33,7 +35,7 @@ export default function ListingSection({ initialData }) {
 
     window.addEventListener('popstate', handlePopState);
     
-    // Kiểm tra nếu người dùng vào thẳng link có sẵn ID sản phẩm
+    // Tự động mở nếu truy cập thẳng vào đường dẫn có sẵn ID sản phẩm
     const urlParams = new URLSearchParams(window.location.search);
     const idParam = urlParams.get('id');
     if (idParam && danhSachBds.length > 0) {
@@ -56,45 +58,11 @@ export default function ListingSection({ initialData }) {
     setTrangHienTai(1);
   }, [filters, danhSachBds]);
 
-  const chuyenDoiNgayThangChuan = (ngayDangStr) => {
-    if (!ngayDangStr) return null;
-    const chuoiSach = ngayDangStr.toString().replace(/[\r\n\t]/g, "").trim();
-    if (!chuoiSach) return null;
-    const parts = chuoiSach.split(/[-/]/);
-    if (parts.length === 3) {
-      const day = parseInt(parts[0], 10);
-      const month = parseInt(parts[1], 10) - 1;
-      const year = parseInt(parts[2], 10);
-      if (!isNaN(day) && !isNaN(month) && !isNaN(year)) return new Date(year, month, day);
-    }
-    return null;
-  };
-
-  const tinhThoiGianCachDay = (ngayDangStr) => {
-    const ngayDang = chuyenDoiNgayThangChuan(ngayDangStr);
-    if (!ngayDang) return "Tin mới";
-    const homNay = new Date();
-    ngayDang.setHours(0,0,0,0);
-    homNay.setHours(0,0,0,0);
-    const hieuThoiGian = homNay.getTime() - ngayDang.getTime();
-    const soNgay = Math.floor(hieuThoiGian / (1000 * 60 * 60 * 24));
-    
-    if (soNgay <= 0) return "Hôm nay";
-    if (soNgay === 1) return "1 ngày trước";
-    if (soNgay < 7) return `${soNgay} ngày trước`;
-    const soTuan = Math.floor(soNgay / 7);
-    if (soTuan < 4) return `${soTuan} tuần trước`;
-    const soThang = Math.floor(soNgay / 30);
-    if (soThang < 12) return `${soThang} tháng trước`;
-    return `${ngayDang.getDate()}/${ngayDang.getMonth() + 1}/${ngayDang.getFullYear()}`;
-  };
-
   const layMangHinhAnh = (chuoiAnh) => {
     if (!chuoiAnh) return [];
     return chuoiAnh.split(',').map(url => url.trim()).filter(url => url !== '');
   };
 
-  // SỬA: Khi kích chọn sản phẩm, sinh ra URL mới tương ứng (?id=...) không làm tải lại trang
   const handleSelectProduct = (item) => {
     setSelectedProduct(item);
     window.history.pushState({ id: item.id }, "", `?id=${item.id}`);
@@ -133,7 +101,7 @@ export default function ListingSection({ initialData }) {
       <Modals 
         selectedProduct={selectedProduct} 
         onClose={handleCloseModal} 
-        tinhThoiGianCachDay={tinhThoiGianCachDay}
+        tinhThoiGianCachDay={(ngay) => "Tin mới"}
         layMangHinhAnh={layMangHinhAnh}
       />
     </>

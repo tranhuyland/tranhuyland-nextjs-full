@@ -27,15 +27,29 @@ export async function generateMetadata({ params }) {
   }
 
   return {
+  title: `Nhà đất ${district} Đà Nẵng | Trần Huy Land`,
+  description: `Mua bán nhà đất ${district} Đà Nẵng chính chủ, cập nhật mới nhất.`,
+
+  keywords: [
+    `nhà đất ${district}`,
+    `bán nhà ${district}`,
+    `bất động sản ${district}`,
+    `${district} Đà Nẵng`,
+  ],
+
+  openGraph: {
     title: `Nhà đất ${district} Đà Nẵng | Trần Huy Land`,
     description: `Mua bán nhà đất ${district} Đà Nẵng chính chủ, cập nhật mới nhất.`,
-    keywords: [
-      `nhà đất ${district}`,
-      `bán nhà ${district}`,
-      `bất động sản ${district}`,
-      `${district} Đà Nẵng`,
-    ],
-  };
+    type: "website",
+    locale: "vi_VN",
+    siteName: "Trần Huy Land",
+    url: `https://tranhuyland.vn/quan/${slug}`,
+  },
+
+  alternates: {
+    canonical: `https://tranhuyland.vn/quan/${slug}`,
+  },
+};
 }
 
 export default async function DistrictPage({ params }) {

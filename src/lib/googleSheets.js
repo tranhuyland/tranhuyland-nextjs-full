@@ -3,7 +3,7 @@ export async function getBdsData() {
   
   try {
     const response = await fetch(SHEET_URL, {
-      next: { revalidate: 60 } // Tự động cập nhật data sau mỗi 60 giây
+      next: { revalidate: 60 } // Tự động làm mới dữ liệu sau mỗi 60 giây
     });
     
     if (!response.ok) throw new Error("Không thể fetch dữ liệu Google Sheet");
@@ -46,6 +46,29 @@ export async function getBdsData() {
         jsonResult.push(obj);
       }
     }
+
+    // Hàm phụ trợ chuyển chuỗi dd/mm/yyyy thành đối tượng Date để so sánh máy tính
+    const parseDate = (dateStr) => {
+      if (!dateStr) return new Date(0); // Nếu không có ngày, đẩy về xa nhất
+      const parts = dateStr.split(/[-/]/);
+      if (parts.length === 3) {
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const year = parseInt(parts[2], 10);
+        if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+          return new Date(year, month, day);
+        }
+      }
+      return new Date(0);
+    };
+
+    // THUẬT TOÁN: Sắp xếp danh sách bất động sản theo ngày đăng mới nhất lên đầu
+    jsonResult.sort((a, b) => {
+      const dateA = parseDate(a.ngayDang);
+      const dateB = parseDate(b.ngayDang);
+      return dateB.getTime() - dateA.getTime(); // Sắp xếp giảm dần (mới nhất -> cũ nhất)
+    });
+
     return jsonResult;
   } catch (error) {
     console.error("Lỗi Google Sheet Reader:", error);

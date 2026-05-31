@@ -1,9 +1,10 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { X, ShieldCheck, MapPin, Calendar, Layers } from 'lucide-react';
+import { X, ShieldCheck, MapPin, Calendar, Layers, Map, FileText } from 'lucide-react';
 
 export default function Modals({ selectedProduct, onClose, tinhThoiGianCachDay, layMangHinhAnh }) {
   const [showKyGui, setShowKyGui] = useState(false);
+  const [soDoUrl, setSoDoUrl] = useState(null); // Quản lý trạng thái popup phóng to ảnh sổ đỏ
   const [kgTen, setKgTen] = useState('');
   const [kgDiaChi, setKgDiaChi] = useState('');
   const [kgGia, setKgGia] = useState('');
@@ -19,6 +20,7 @@ export default function Modals({ selectedProduct, onClose, tinhThoiGianCachDay, 
     return () => window.removeEventListener('open-modal-kygui', open);
   }, []);
 
+  // Xử lý vuốt đóng modal trên iPhone (Swipe to close)
   useEffect(() => {
     const modalElement = khungModalRef.current;
     if (!modalElement) return;
@@ -76,13 +78,12 @@ export default function Modals({ selectedProduct, onClose, tinhThoiGianCachDay, 
   };
 
   const danhSachAnh = selectedProduct ? layMangHinhAnh(selectedProduct.anh) : [];
-  
-  // TÍNH TOÁN TỔNG SỐ MỤC MEDIA (Bao gồm cả Video + Ảnh để hiển thị thanh đếm chính xác)
   const coVideo = selectedProduct && selectedProduct.videoUrl;
   const tongSoMucMedia = danhSachAnh.length + (coVideo ? 1 : 0);
 
   return (
     <>
+      {/* 1. CHI TIẾT SẢN PHẨM POPUP */}
       {selectedProduct && (
         <div className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div 
@@ -92,52 +93,30 @@ export default function Modals({ selectedProduct, onClose, tinhThoiGianCachDay, 
           >
             <button 
               onClick={onClose} 
-              className="absolute top-4 right-4 z-50 w-8 h-8 bg-slate-900/60 backdrop-blur-md text-white rounded-full flex items-center justify-center hover:bg-slate-900 transition-all shadow active:scale-90"
+              className="absolute top-4 right-4 z-30 w-8 h-8 bg-slate-900/60 backdrop-blur-md text-white rounded-full flex items-center justify-center hover:bg-slate-900 transition-all shadow active:scale-90"
             >
               <X className="w-4 h-4 stroke-[3]" />
             </button>
 
             <div className="overflow-y-auto flex-1 no-scrollbar">
-              {/* KHU VỰC TRÌNH CHIẾU MEDIA (Đã chèn khung iframe Video mượt mà) */}
+              {/* VÙNG TRÌNH CHIẾU MEDIA */}
               <div className="relative aspect-[16/10] bg-slate-100 image-slider-container group">
                 <div ref={slideRef} className="w-full h-full flex overflow-x-auto snap-x snap-mandatory no-scrollbar">
-                  
-                  {/* ĐÃ BỔ SUNG: Nếu có link videoUrl từ Google Sheet, chèn khung phát ngay ô đầu tiên */}
                   {coVideo && (
                     <div className="w-full h-full flex-shrink-0 snap-start snap-always relative">
-                      <iframe 
-                        className="w-full h-full border-0" 
-                        src={selectedProduct.videoUrl} 
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-                        allowFullScreen
-                      ></iframe>
+                      <iframe className="w-full h-full border-0" src={selectedProduct.videoUrl} allowFullScreen></iframe>
                     </div>
                   )}
-
-                  {/* Vòng lặp kết xuất danh sách hình ảnh thực tế */}
                   {danhSachAnh.map((url, idx) => (
-                    <img key={idx} src={url} className="w-full h-full object-cover flex-shrink-0 snap-start snap-always" alt="Hình ảnh khảo sát nhà đất thật" />
+                    <img key={idx} src={url} className="w-full h-full object-cover flex-shrink-0 snap-start snap-always" alt="Hình thực tế" />
                   ))}
                 </div>
 
-                {/* Các phím mũi tên điều hướng slide */}
                 {tongSoMucMedia > 1 && (
                   <>
-                    <button 
-                      onClick={() => chuyenAnhSlide('trai')} 
-                      className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 bg-black/50 hover:bg-black/70 backdrop-blur-sm text-white rounded-full flex items-center justify-center font-bold text-lg active:scale-90 select-none transition-opacity"
-                    >
-                      ‹
-                    </button>
-                    <button 
-                      onClick={() => chuyenAnhSlide('phai')} 
-                      className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 bg-black/50 hover:bg-black/70 backdrop-blur-sm text-white rounded-full flex items-center justify-center font-bold text-lg active:scale-90 select-none transition-opacity"
-                    >
-                      ›
-                    </button>
-                    
-                    {/* Nhãn đếm tổng số lượng Media có trong giỏ hàng */}
-                    <div className="bg-slate-900/70 backdrop-blur-sm text-white text-[10px] font-bold px-2.5 py-1 rounded-md absolute top-4 left-4 z-10 pointer-events-none flex items-center gap-1 shadow-sm uppercase tracking-wider">
+                    <button onClick={() => chuyenAnhSlide('trai')} className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 bg-black/50 text-white rounded-full flex items-center justify-center font-bold text-lg active:scale-90 select-none">‹</button>
+                    <button onClick={() => chuyenAnhSlide('phai')} className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 bg-black/50 text-white rounded-full flex items-center justify-center font-bold text-lg active:scale-90 select-none">›</button>
+                    <div className="bg-slate-900/70 text-white text-[10px] font-bold px-2.5 py-1 rounded-md absolute top-4 left-4 z-10 pointer-events-none flex items-center gap-1 shadow-sm uppercase tracking-wider">
                       <Layers className="w-3 h-3 text-amber-400" /> Giỏ hàng: {coVideo ? '1 Video & ' : ''}{danhSachAnh.length} Ảnh
                     </div>
                   </>
@@ -164,13 +143,44 @@ export default function Modals({ selectedProduct, onClose, tinhThoiGianCachDay, 
                   <div><div className="text-slate-400 text-[11px] font-bold uppercase mb-0.5 tracking-wider">Hướng</div><strong className="text-slate-900 text-sm sm:text-base">{selectedProduct.huong || 'Chưa rõ'}</strong></div>
                 </div>
 
-                <p className="text-slate-700 text-sm leading-relaxed mt-4 whitespace-pre-line text-justify">{selectedProduct.moTa}</p>
+                {/* KHÔI PHỤC: Bộ đôi nút bấm Vị trí Bản đồ và Ảnh Sổ Đỏ của bản gốc */}
+                <div className="grid grid-cols-2 gap-3 mb-5">
+                  {selectedProduct.linkMap ? (
+                    <a href={selectedProduct.linkMap} target="_blank" rel="noopener noreferrer" className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold border border-emerald-200 rounded-xl py-2.5 px-3 text-center text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-colors shadow-sm">
+                      <Map className="w-4 h-4" /> Bản Đồ Vị Trí
+                    </a>
+                  ) : null}
+                  {selectedProduct.anhSoDo ? (
+                    <button onClick={() => setSoDoUrl(selectedProduct.anhSoDo)} className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold border border-indigo-200 rounded-xl py-2.5 px-3 text-center text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-colors shadow-sm">
+                      <FileText className="w-4 h-4" /> Sổ Đỏ Bản Vẽ
+                    </button>
+                  ) : null}
+                </div>
+
+                <h4 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider mb-2">Mô tả thực tế nhà đất:</h4>
+                <p className="text-slate-700 text-sm leading-relaxed whitespace-pre-line text-justify mb-6">{selectedProduct.moTa}</p>
+                
                 <div className="flex gap-3 mt-6 border-t pt-4">
                   <a href="tel:0931555551" className="flex-1 bg-slate-900 text-white text-center py-3 rounded-xl font-bold flex items-center justify-center gap-1">Gọi ngay</a>
                   <a href="https://zalo.me/0931555551" target="_blank" className="flex-1 bg-blue-600 text-white text-center py-3 rounded-xl font-bold flex items-center justify-center gap-1">Zalo</a>
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* KHÔI PHỤC: POPUP PHÓNG TO XEM SỔ ĐỎ CHUYÊN BIỆT */}
+      {soDoUrl && (
+        <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <button 
+            onClick={() => setSoDoUrl(null)} 
+            className="absolute top-4 right-4 z-50 w-10 h-10 bg-white/20 hover:bg-white/40 text-white rounded-full flex items-center justify-center transition-all shadow active:scale-90"
+          >
+            <X className="w-6 h-6 stroke-[2.5]" />
+          </button>
+          <div className="max-w-3xl w-full max-h-[85vh] flex items-center justify-center overflow-hidden rounded-xl">
+            <img src={soDoUrl} alt="Bản vẽ sơ đồ sổ đỏ chi tiết" className="max-w-full max-h-[85vh] object-contain shadow-2xl rounded-xl animate-in zoom-in-95 duration-200" />
           </div>
         </div>
       )}

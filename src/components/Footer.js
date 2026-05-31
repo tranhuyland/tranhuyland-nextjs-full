@@ -26,7 +26,7 @@ export default function Footer() {
         <div>
           <h4 className="text-white font-bold text-sm uppercase tracking-wider mb-5">THÔNG TIN LIÊN HỆ CHÍNH THỨC</h4>
           <ul className="space-y-3 text-slate-400 text-sm font-medium">
-            <li className="flex items-center gap-2"><MapPin className="w-4 h-4 text-slate-500" /> Văn phòng: 26 Cẩm Bá Thước, Hải Châu, Đà Nẵng</li>
+            <li className="flex items-center gap-2"><MapPin className="w-4 h-4 text-slate-500" /> Văn phòng: 26 Cầm Bá Thước, Hải Châu, Đà Nẵng</li>
             <li className="flex items-center gap-2"><Phone className="w-4 h-4 text-slate-500" /> Hotline tư vấn: 0931 555 551</li>
             <li className="flex items-center gap-2"><MessageSquare className="w-4 h-4 text-slate-500" /> Kênh kết nối: zalo.me/0931555551</li>
           </ul>

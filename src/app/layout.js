@@ -8,13 +8,35 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata = {
-  title: "Trần Huy Land | Kho Nhà Đất Chính Chủ Hải Châu Cẩm Lệ Đà Nẵng",
-  description: "Mua bán, ký gửi nhà đất chính chủ uy tín tại Hải Châu, Cẩm Lệ, Đà Nẵng. Cập nhật giỏ hàng thực tế mỗi ngày. Pháp lý minh bạch, có sẵn sổ đỏ bản vẽ xem ngay.",
-  keywords: ["nhà đất đà nẵng", "nhà đất chính chủ hải châu", "ký gửi nhà đất cẩm lệ", "nhà đất trần huy"],
+  metadataBase: new URL("https://tranhuyland.vn"),
+
+  title: {
+    default: "Trần Huy Land - Nhà Đất Đà Nẵng Chính Chủ",
+    template: "%s | Trần Huy Land",
+  },
+
+  description:
+    "Kho nhà đất chính chủ Đà Nẵng. Nhà phố Hải Châu, Cẩm Lệ, Sơn Trà, Ngũ Hành Sơn. Hình thật, giá thật, pháp lý minh bạch.",
+
+  keywords: [
+    "nhà đất đà nẵng",
+    "nhà đất hải châu",
+    "nhà đất cẩm lệ",
+    "bán nhà đà nẵng",
+    "đất nền hòa xuân",
+    "trần huy land",
+  ],
+
+  alternates: {
+    canonical: "/",
+  },
+
   openGraph: {
-    title: "Trần Huy Land | Kho Nhà Đất Chính Chủ Hải Châu Cẩm Lệ Đà Nẵng",
-    description: "Mua bán, ký gửi nhà đất chính chủ uy tín tại Hải Châu, Cẩm Lệ, Đà Nẵng.",
-    images: [{ url: "https://i.postimg.cc/JhKg8VZ9/70554272-47DB-4D3A-A1AE-2782EFCAF00F.png" }],
+    title: "Trần Huy Land",
+    description: "Kho nhà đất chính chủ Đà Nẵng cập nhật mỗi ngày.",
+    url: "https://tranhuyland.vn",
+    siteName: "Trần Huy Land",
+    locale: "vi_VN",
     type: "website",
   },
 };

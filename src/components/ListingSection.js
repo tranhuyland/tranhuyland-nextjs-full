@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Compass, Clock, MapPin, Square, Bed, ChevronRight } from 'lucide-react';
+import { Compass, Clock, MapPin, ChevronRight, Video } from 'lucide-react';
 import Modals from './Modals';
 
 const ITEMS_PER_PAGE = 6;
@@ -18,12 +18,10 @@ export default function ListingSection({ initialData }) {
       .then(data => { if (data?.length > 0) setDanhSachBds(data); });
   }, []);
 
-  // Lắng nghe sự kiện để đóng/mở modal tương thích mượt mà với tính năng vuốt back của iOS
   useEffect(() => {
     const handlePopState = () => {
       const urlParams = new URLSearchParams(window.location.search);
       const idParam = urlParams.get('id');
-      
       if (!idParam) {
         setSelectedProduct(null);
       } else if (danhSachBds.length > 0) {
@@ -31,7 +29,6 @@ export default function ListingSection({ initialData }) {
         if (product) setSelectedProduct(product);
       }
     };
-
     window.addEventListener('popstate', handlePopState);
     
     const urlParams = new URLSearchParams(window.location.search);
@@ -40,7 +37,6 @@ export default function ListingSection({ initialData }) {
       const product = danhSachBds.find(p => p.id === parseInt(idParam));
       if (product) setSelectedProduct(product);
     }
-
     return () => window.removeEventListener('popstate', handlePopState);
   }, [danhSachBds]);
 
@@ -56,7 +52,6 @@ export default function ListingSection({ initialData }) {
     setTrangHienTai(1);
   }, [filters, danhSachBds]);
 
-  // THUẬT TOÁN 1: Chuyển đổi định dạng ngày tháng chuỗi từ Google Sheet (dd/mm/yyyy hoặc dd-mm-yyyy)
   const chuyenDoiNgayThangChuan = (ngayDangStr) => {
     if (!ngayDangStr) return null;
     const chuoiSach = ngayDangStr.toString().replace(/[\r\n\t]/g, "").trim();
@@ -71,28 +66,22 @@ export default function ListingSection({ initialData }) {
     return null;
   };
 
-  // THUẬT TOÁN 2: Tính toán thời gian thực tế cách thời điểm hiện tại (Đã sửa lỗi đồng bộ dữ liệu)
   const tinhThoiGianCachDay = (ngayDangStr) => {
     const ngayDang = chuyenDoiNgayThangChuan(ngayDangStr);
     if (!ngayDang) return "Tin mới";
-    
     const homNay = new Date();
     ngayDang.setHours(0,0,0,0);
     homNay.setHours(0,0,0,0);
-    
     const hieuThoiGian = homNay.getTime() - ngayDang.getTime();
     const soNgay = Math.floor(hieuThoiGian / (1000 * 60 * 60 * 24));
     
     if (soNgay <= 0) return "Hôm nay";
     if (soNgay === 1) return "1 ngày trước";
     if (soNgay < 7) return `${soNgay} ngày trước`;
-    
     const soTuan = Math.floor(soNgay / 7);
     if (soTuan < 4) return `${soTuan} tuần trước`;
-    
     const soThang = Math.floor(soNgay / 30);
     if (soThang < 12) return `${soThang} tháng trước`;
-    
     return `${ngayDang.getDate()}/${ngayDang.getMonth() + 1}/${ngayDang.getFullYear()}`;
   };
 
@@ -111,18 +100,18 @@ export default function ListingSection({ initialData }) {
     window.history.pushState({}, "", window.location.pathname);
   };
 
+  // LOGIC PHÂN TRANG: Tính toán vị trí cắt mốc 6 bài một trang
   const batDau = (trangHienTai - 1) * ITEMS_PER_PAGE;
   const dataTrangHienTai = filteredData.slice(batDau, batDau + ITEMS_PER_PAGE);
+  const tongSoTrang = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
 
   return (
     <>
-      <main className="max-w-7xl mx-auto w-full px-4 mt-16 mb-20">
+      <main className="max-w-7xl mx-auto w-full px-4 mt-16 mb-10">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7">
           {dataTrangHienTai.map(item => {
             const danhSachAnh = layMangHinhAnh(item.anh);
             const anhDaiDien = danhSachAnh.length > 0 ? danhSachAnh[0] : 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=600&q=80';
-            
-            // Tính toán nhãn thời gian động cho từng sản phẩm ở danh sách ngoài
             const vanBanCachDay = tinhThoiGianCachDay(item.ngayDang);
 
             return (
@@ -130,12 +119,37 @@ export default function ListingSection({ initialData }) {
                 <div className="relative aspect-[4/3] bg-slate-100 overflow-hidden">
                   <img src={anhDaiDien} alt={item.tieude} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy" />
                   
-                  {/* ĐÃ KHÔI PHỤC: Tag hiển thị mốc thời gian cách đây bao lâu ở góc dưới bên trái ảnh */}
+                  {/* BỔ SUNG: Hiển thị nhãn hệ thống (Tag nhãn nội dung đè lên ảnh giống 100% bản gốc) */}
+                  <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10">
+                    {/* Nhãn loại hình hoặc hàng độc quyền */}
+                    <span className={`text-white font-bold text-[10px] uppercase px-2.5 py-1 rounded-lg tracking-wider shadow-sm ${item.tagColor || 'bg-slate-900'}`}>
+                      {item.tag || 'Bán Đất'}
+                    </span>
+                    {/* Nhãn nhận biết mặt tiền */}
+                    {(item.isMatTien === true || item.isMatTien === 'TRUE') && (
+                      <span className="bg-red-600 text-white font-bold text-[10px] uppercase px-2.5 py-1 rounded-lg tracking-wider shadow-sm flex items-center gap-1">
+                        🔥 Mặt Tiền Kinh Doanh
+                      </span>
+                    )}
+                    {/* Nhãn nhận biết bài đăng có video thực tế */}
+                    {item.videoUrl && (
+                      <span className="bg-emerald-600 text-white font-bold text-[10px] uppercase px-2.5 py-1 rounded-lg tracking-wider shadow-sm flex items-center gap-1">
+                        <Video className="w-3 h-3" /> Có Video Khảo Sát
+                      </span>
+                    )}
+                  </div>
+
+                  {item.huong && (
+                    <span className="absolute top-3 right-3 bg-white/95 backdrop-blur-sm text-slate-800 font-extrabold text-[10px] px-2.5 py-1 rounded-lg shadow-sm flex items-center gap-1 z-10">
+                      <Compass className="w-3 h-3 text-amber-500" />{item.huong}
+                    </span>
+                  )}
+                  
                   <span className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm text-white text-[10px] font-semibold px-2.5 py-1 rounded-lg flex items-center gap-1 z-10">
                     <Clock className="w-3 h-3 text-amber-400" /> {vanBanCachDay}
                   </span>
 
-                  <span className="absolute bottom-3 right-3 bg-slate-900/90 backdrop-blur-sm text-white font-extrabold text-sm px-3 py-1 rounded-xl shadow-md">{item.gia}</span>
+                  <span className="absolute bottom-3 right-3 bg-slate-900/90 backdrop-blur-sm text-white font-extrabold text-sm px-3 py-1 rounded-xl shadow-md z-10">{item.gia}</span>
                 </div>
                 <div className="p-5 flex-1 flex flex-col justify-between">
                   <div>
@@ -153,6 +167,24 @@ export default function ListingSection({ initialData }) {
             );
           })}
         </div>
+
+        {/* BỔ SUNG: Thanh nút bấm chuyển phân trang mượt mà khi kho hàng có > 6 sản phẩm */}
+        {tongSoTrang > 1 && (
+          <div className="flex justify-center items-center gap-2 mt-12 mb-10">
+            {Array.from({ length: tongSoTrang }, (_, i) => i + 1).map(page => (
+              <button 
+                key={page} 
+                onClick={() => {
+                  setTrangHienTai(page);
+                  window.scrollTo({ top: document.getElementById('listing-section').offsetTop - 90, behavior: 'smooth' });
+                }} 
+                className={`w-9 h-9 rounded-xl text-sm transition-all active:scale-95 font-bold ${page === trangHienTai ? 'bg-amber-500 text-slate-900 shadow-sm font-extrabold scale-105' : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-300'}`}
+              >
+                {page}
+              </button>
+            ))}
+          </div>
+        )}
       </main>
 
       <Modals 

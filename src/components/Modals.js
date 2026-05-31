@@ -8,7 +8,6 @@ export default function Modals({ selectedProduct, onClose, tinhThoiGianCachDay, 
   const [kgDiaChi, setKgDiaChi] = useState('');
   const [kgGia, setKgGia] = useState('');
   
-  // Quản lý trạng thái touch để vuốt đóng modal trên iPhone
   const khungModalRef = useRef(null);
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
@@ -19,7 +18,7 @@ export default function Modals({ selectedProduct, onClose, tinhThoiGianCachDay, 
     return () => window.removeEventListener('open-modal-kygui', open);
   }, []);
 
-  // Xử lý cử chỉ vuốt ngang (Swipe to close) mượt mà
+  // XỬ LÝ VUỐT BACK MƯỢT MÀ - CHỐNG XUNG ĐỘT SAFARI BỊ KHỰNG
   useEffect(() => {
     const modalElement = khungModalRef.current;
     if (!modalElement) return;
@@ -30,6 +29,7 @@ export default function Modals({ selectedProduct, onClose, tinhThoiGianCachDay, 
     };
 
     const handleTouchEnd = (e) => {
+      // Bỏ qua nếu đang lướt slider ảnh
       if (e.target.closest('.image-slider-container')) return;
 
       const touchEndX = e.changedTouches[0].screenX;
@@ -38,9 +38,16 @@ export default function Modals({ selectedProduct, onClose, tinhThoiGianCachDay, 
       const khoangCachX = touchEndX - touchStartX.current;
       const khoangCachY = Math.abs(touchEndY - touchStartY.current);
 
-      // Nếu vuốt từ trái qua phải một khoảng vừa đủ và không bị lệch xéo dọc quá mức
-      if (khoangCachX > 75 && khoangCachY < 45) {
-        onClose();
+      // Điều kiện vuốt ngang chuẩn
+      if (khoangCachX > 75 && khoangCachY < 40) {
+        // TỐI ƯU: Nếu người dùng vuốt rất sát viền trái (dưới 40px), hãy nhường quyền cho Safari xử lý
+        // tránh kích hoạt onClose() 2 lần gây khựng. Nếu vuốt ở giữa màn hình thì tự xử lý bằng JS.
+        if (touchStartX.current > 40) {
+          onClose();
+        } else {
+          // Nhường Safari tự kích hoạt sự kiện popstate để đóng Modal mượt mà
+          window.history.back();
+        }
       }
     };
 
@@ -81,7 +88,6 @@ export default function Modals({ selectedProduct, onClose, tinhThoiGianCachDay, 
             ref={khungModalRef} 
             className="bg-white w-full sm:max-w-xl rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-2xl relative max-h-[92vh] sm:max-h-[88vh] flex flex-col text-slate-800 animate-in slide-in-from-bottom duration-300"
           >
-            {/* Nút bấm icon X chuẩn Lucide để tắt nhanh */}
             <button 
               onClick={onClose} 
               className="absolute top-4 right-4 z-50 w-8 h-8 bg-slate-900/60 backdrop-blur-md text-white rounded-full flex items-center justify-center hover:bg-slate-900 transition-all shadow active:scale-90"

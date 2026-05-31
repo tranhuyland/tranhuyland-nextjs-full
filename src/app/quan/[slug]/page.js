@@ -1,6 +1,6 @@
-import { notFound } from "next/navigation";
+import ListingSection from "@/components/ListingSection";
 import { getBdsData } from "@/lib/googleSheets";
-import PropertyCard from "@/components/PropertyCard";
+import { notFound } from "next/navigation";
 
 const DISTRICTS = {
   "hai-chau": "Hải Châu",
@@ -16,18 +16,20 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }) {
-  const district = DISTRICTS[params.slug];
+  const { slug } = await params;
 
-  if (!district) return {};
+  const district = DISTRICTS[slug];
 
   return {
     title: `Nhà đất ${district} Đà Nẵng`,
-    description: `Kho nhà đất ${district} cập nhật mới nhất.`,
+    description: `Mua bán nhà đất ${district} Đà Nẵng chính chủ`,
   };
 }
 
 export default async function DistrictPage({ params }) {
-  const district = DISTRICTS[params.slug];
+  const { slug } = await params;
+
+  const district = DISTRICTS[slug];
 
   if (!district) {
     notFound();
@@ -35,28 +37,25 @@ export default async function DistrictPage({ params }) {
 
   const data = await getBdsData();
 
-  const properties = data.filter(
-    (item) => item.khuVuc?.trim() === district
+  const filteredData = data.filter(
+    (item) =>
+      item.khuVuc &&
+      item.khuVuc.trim() === district
   );
 
   return (
-    <main className="container mx-auto px-4 py-10">
-      <h1 className="text-3xl font-bold mb-4">
-        Nhà đất {district}
-      </h1>
+    <div>
+      <section className="max-w-7xl mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold">
+          Nhà đất {district}
+        </h1>
 
-      <p className="text-gray-600 mb-8">
-        Tổng hợp nhà đất chính chủ tại {district}.
-      </p>
+        <p className="text-slate-600 mt-2">
+          Tổng hợp bất động sản khu vực {district}.
+        </p>
+      </section>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {properties.map((item) => (
-          <PropertyCard
-            key={item.id}
-            property={item}
-          />
-        ))}
-      </div>
-    </main>
+      <ListingSection initialData={filteredData} />
+    </div>
   );
 }

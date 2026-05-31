@@ -46,7 +46,7 @@ export default function RootLayout({ children }) {
           }}
         />
       </head>
-      <body class="antialiased min-h-screen flex flex-col pb-20 md:pb-0">
+      <body className="antialiased min-h-screen flex flex-col pb-20 md:pb-0">
         {children}
       </body>
     </html>

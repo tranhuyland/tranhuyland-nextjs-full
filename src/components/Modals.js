@@ -18,7 +18,7 @@ export default function Modals({ selectedProduct, onClose, tinhThoiGianCachDay, 
     return () => window.removeEventListener('open-modal-kygui', open);
   }, []);
 
-  // XỬ LÝ VUỐT BACK MƯỢT MÀ - CHỐNG XUNG ĐỘT SAFARI BỊ KHỰNG
+  // KHẮC PHỤC TRIỆT ĐỂ LỖI GIẬT NHÁY HÌNH TRÊN SAFARI DI ĐỘNG
   useEffect(() => {
     const modalElement = khungModalRef.current;
     if (!modalElement) return;
@@ -29,7 +29,6 @@ export default function Modals({ selectedProduct, onClose, tinhThoiGianCachDay, 
     };
 
     const handleTouchEnd = (e) => {
-      // Bỏ qua nếu đang lướt slider ảnh
       if (e.target.closest('.image-slider-container')) return;
 
       const touchEndX = e.changedTouches[0].screenX;
@@ -38,16 +37,17 @@ export default function Modals({ selectedProduct, onClose, tinhThoiGianCachDay, 
       const khoangCachX = touchEndX - touchStartX.current;
       const khoangCachY = Math.abs(touchEndY - touchStartY.current);
 
-      // Điều kiện vuốt ngang chuẩn
-      if (khoangCachX > 75 && khoangCachY < 40) {
-        // TỐI ƯU: Nếu người dùng vuốt rất sát viền trái (dưới 40px), hãy nhường quyền cho Safari xử lý
-        // tránh kích hoạt onClose() 2 lần gây khựng. Nếu vuốt ở giữa màn hình thì tự xử lý bằng JS.
-        if (touchStartX.current > 40) {
-          onClose();
-        } else {
-          // Nhường Safari tự kích hoạt sự kiện popstate để đóng Modal mượt mà
-          window.history.back();
+      // Nhận diện hành động chủ động vuốt ngang để đóng cửa sổ
+      if (khoangCachX > 80 && khoangCachY < 35) {
+        // Giải pháp cốt lõi: Nếu điểm chạm xuất phát nằm sát rìa trái màn hình (< 50px),
+        // đây hoàn toàn là cử chỉ Back mặc định của hệ thống iOS.
+        // Ta dùng lệnh return để chấm dứt Javascript, nhường trọn vẹn tiến trình cho Safari tự render lịch sử.
+        if (touchStartX.current < 50) {
+          return; 
         }
+        
+        // Nếu người dùng vuốt từ lửng giữa màn hình sang phải, đóng modal mượt mà qua state của React
+        onClose();
       }
     };
 
@@ -86,7 +86,8 @@ export default function Modals({ selectedProduct, onClose, tinhThoiGianCachDay, 
         <div className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div 
             ref={khungModalRef} 
-            className="bg-white w-full sm:max-w-xl rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-2xl relative max-h-[92vh] sm:max-h-[88vh] flex flex-col text-slate-800 animate-in slide-in-from-bottom duration-300"
+            className="bg-white w-full sm:max-w-xl rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-2xl relative max-h-[92vh] sm:max-h-[88vh] flex flex-col text-slate-800 will-change-transform transform transition-transform"
+            style={{ WebkitBackfaceVisibility: 'hidden', backfaceVisibility: 'hidden' }}
           >
             <button 
               onClick={onClose} 

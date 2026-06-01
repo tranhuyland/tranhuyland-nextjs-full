@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
 import { getBdsData } from "@/lib/googleSheets";
 
-// 🔥 SEO metadata
+// =========================
+// SEO METADATA
+// =========================
 export async function generateMetadata({ params }) {
-  const { slug } = params;
+  const { slug } = await params;
 
   const data = await getBdsData();
 
@@ -15,7 +17,7 @@ export async function generateMetadata({ params }) {
     };
   }
 
-  const image = item.images?.[0] || "";
+  const image = item.images?.[0];
 
   return {
     title: `${item.title} | Trần Huy Land`,
@@ -33,20 +35,24 @@ export async function generateMetadata({ params }) {
   };
 }
 
-// 🔥 generate static routes (SEO + performance)
+// =========================
+// STATIC PARAMS (SEO)
+// =========================
 export async function generateStaticParams() {
   const data = await getBdsData();
 
-  return data
+  return (data || [])
     .filter((item) => item.slug)
     .map((item) => ({
       slug: item.slug,
     }));
 }
 
-// 🔥 PAGE
+// =========================
+// PAGE
+// =========================
 export default async function PropertyPage({ params }) {
-  const { slug } = params;
+  const { slug } = await params;
 
   const data = await getBdsData();
 
@@ -54,16 +60,14 @@ export default async function PropertyPage({ params }) {
 
   if (!item) notFound();
 
-  const image = item.images?.[0] || "";
+  const image = item.images?.[0];
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-10">
-      {/* TITLE */}
       <h1 className="text-3xl font-bold mb-4">
         {item.title}
       </h1>
 
-      {/* IMAGE */}
       {image && (
         <img
           src={image}
@@ -72,12 +76,10 @@ export default async function PropertyPage({ params }) {
         />
       )}
 
-      {/* PRICE */}
       <div className="text-2xl font-bold text-red-600 mb-4">
-        {item.price}
+        {item.price?.toLocaleString("vi-VN")}
       </div>
 
-      {/* INFO */}
       <div className="space-y-2 text-slate-700">
         <p>
           <strong>Khu vực:</strong> {item.location}
@@ -88,7 +90,6 @@ export default async function PropertyPage({ params }) {
         </p>
       </div>
 
-      {/* DESCRIPTION */}
       <div className="mt-8 prose max-w-none">
         <p>{item.description}</p>
       </div>

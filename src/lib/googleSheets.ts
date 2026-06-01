@@ -23,50 +23,48 @@ const slugify = (text: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)+/g, "");
 
-// =======================
-// DEBUG SAFE NORMALIZE
-// =======================
+// ========================
+// CACHE IN MEMORY (QUAN TRỌNG)
+// ========================
+let cache: BdsItem[] | null = null;
+let lastFetchTime = 0;
+const CACHE_TIME = 60 * 1000; // 1 phút
+
 function normalize(row: any, index: number): BdsItem {
   return {
-    id: Number(row.id || index),
-
-    // 🔥 FIX: fallback nhiều tên cột Google Sheet
-    title: row.title || row.tieude || "",
-
-    description: row.description || row.moTa || "",
-
+    id: Number(row.id) || index,
+    title: row.title || "",
+    description: row.description || "",
     price:
-      Number(String(row.price || row.gia || row.soGia || "").replace(/[^\d]/g, "")) ||
-      0,
-
-    area: row.area || row.dienTich || "",
-
-    location: row.location || row.khuVuc || "",
-
-    images: (row.images || row.anh || "")
+      Number(String(row.price || row.soGia || "").replace(/[^\d]/g, "")) || 0,
+    area: row.area || "",
+    location: row.location || "",
+    images: (row.images || "")
       .split(",")
       .map((i: string) => i.trim())
       .filter(Boolean),
-
-    slug: slugify(row.title || row.tieude || `bds-${index}`),
-
+    slug: slugify(row.title || `bds-${index}`),
     ngayDang: row.ngayDang || row.date || "",
   };
 }
 
 export async function getBdsData(): Promise<BdsItem[]> {
   try {
+    const now = Date.now();
+
+    // ✅ dùng cache để tránh gọi Google Sheet liên tục
+    if (cache && now - lastFetchTime < CACHE_TIME) {
+      return cache;
+    }
+
     const res = await fetch(SHEET_URL, {
-      cache: "no-store",
+      // ❌ QUAN TRỌNG: KHÔNG dùng no-store
+      next: { revalidate: 60 }, // cache 60s
     });
 
-    const csv = await res.text();
+    if (!res.ok) return [];
 
-    // 🔥 CHECK HTML ERROR (RẤT QUAN TRỌNG)
-    if (!csv || csv.includes("<html")) {
-      console.error("❌ Google Sheet chưa public hoặc bị redirect login");
-      return [];
-    }
+    const csv = await res.text();
 
     const parsed = Papa.parse(csv, {
       header: true,
@@ -75,18 +73,10 @@ export async function getBdsData(): Promise<BdsItem[]> {
 
     const raw = parsed.data as any[];
 
-    if (!Array.isArray(raw)) {
-      console.error("❌ parsed.data không phải array");
-      return [];
-    }
+    if (!Array.isArray(raw)) return [];
 
-    const data = raw
-      .map((row, index) => normalize(row, index))
-      .filter((item) => item.title); // 🔥 lọc rác
+    const data = raw.map(normalize);
 
-    // =========================
-    // UNIQUE SLUG
-    // =========================
     const used = new Map<string, number>();
 
     const unique = data.map((item) => {
@@ -99,20 +89,19 @@ export async function getBdsData(): Promise<BdsItem[]> {
       };
     });
 
-    // =========================
-    // SORT NEWEST
-    // =========================
     unique.sort(
       (a, b) =>
         new Date(b.ngayDang || 0).getTime() -
         new Date(a.ngayDang || 0).getTime()
     );
 
-    console.log("✅ BDS COUNT:", unique.length);
+    // update cache
+    cache = unique;
+    lastFetchTime = now;
 
     return unique;
-  } catch (err) {
-    console.error("❌ GoogleSheet error:", err);
-    return [];
+  } catch (e) {
+    console.error("GoogleSheet error:", e);
+    return cache || [];
   }
 }

@@ -7,11 +7,26 @@ const SHEET_URL =
   "https://docs.google.com/spreadsheets/d/1-LupBV6uNuUitz4vF6pFv6MupuVDMujafqhjQBNNPTA/export?format=csv";
 
 // ========================
-// SLUGIFY (SEO chuẩn)
+// TYPES (optional nhưng an toàn)
 // ========================
-const slugify = (text) =>
+export type BdsItem = {
+  id: number;
+  title: string;
+  description: string;
+  price: number;
+  area: string;
+  location: string;
+  images: string[];
+  slug: string;
+  ngayDang: string;
+};
+
+// ========================
+// SLUGIFY
+// ========================
+const slugify = (text: string = "") =>
   text
-    ?.toLowerCase()
+    .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
@@ -20,31 +35,28 @@ const slugify = (text) =>
 // ========================
 // AUTO UNIQUE SLUG
 // ========================
-function generateUniqueSlugs(data) {
-  const used = new Map();
+function generateUniqueSlugs(data: any[]) {
+  const used = new Map<string, number>();
 
   return data.map((item, index) => {
     let base = slugify(item.title || `bds-${index}`);
 
     if (!base) base = `bds-${index}`;
 
-    let count = used.get(base) || 0;
-
-    let slug = count === 0 ? base : `${base}-${count + 1}`;
-
+    const count = used.get(base) || 0;
     used.set(base, count + 1);
 
     return {
       ...item,
-      slug,
+      slug: count === 0 ? base : `${base}-${count + 1}`,
     };
   });
 }
 
 // ========================
-// NORMALIZE PROPERTY
+// NORMALIZE DATA
 // ========================
-function normalizeProperty(row, index) {
+function normalizeProperty(row: any, index: number): BdsItem {
   return {
     id: Number(row.id) || index,
     title: row.title || "",
@@ -57,24 +69,25 @@ function normalizeProperty(row, index) {
 
     images: (row.images || "")
       .split(/,|;/)
-      .map((img) => img.trim())
-      .filter((img) => img),
+      .map((img: string) => img.trim())
+      .filter(Boolean),
+
+    slug: "",
 
     ngayDang: row.ngayDang || row.date || "",
   };
 }
 
 // ========================
-// PARSE DATE SAFE
+// SAFE DATE PARSE
 // ========================
-function parseDate(dateStr) {
-  if (!dateStr) return new Date(0);
+function parseDate(str: string) {
+  if (!str) return new Date(0);
 
-  const parts = dateStr.split(/[-/]/);
+  const parts = str.split(/[-/]/);
   if (parts.length !== 3) return new Date(0);
 
   const [d, m, y] = parts.map(Number);
-
   if (isNaN(d) || isNaN(m) || isNaN(y)) return new Date(0);
 
   return new Date(y, m - 1, d);
@@ -83,45 +96,42 @@ function parseDate(dateStr) {
 // ========================
 // MAIN FUNCTION
 // ========================
-export async function getBdsData() {
+export async function getBdsData(): Promise<BdsItem[]> {
   try {
-    const response = await fetch(SHEET_URL, {
+    const res = await fetch(SHEET_URL, {
       cache: "no-store",
     });
 
-    if (!response.ok) {
-      throw new Error("Không thể fetch Google Sheet");
-    }
+    if (!res.ok) throw new Error("Fetch Google Sheet failed");
 
-    const csv = await response.text();
+    const csv = await res.text();
 
     const parsed = Papa.parse(csv, {
       header: true,
       skipEmptyLines: true,
     });
 
-    const data = parsed.data;
+    const raw = parsed.data as any[];
 
-    if (!Array.isArray(data) || data.length === 0) {
-      return [];
-    }
+    if (!Array.isArray(raw) || raw.length === 0) return [];
 
     // normalize
-    let result = data.map((row, index) =>
+    let result: BdsItem[] = raw.map((row, index) =>
       normalizeProperty(row, index)
     );
 
     // auto slug unique
     result = generateUniqueSlugs(result);
 
-    // sort mới nhất
-    result.sort((a, b) => {
-      return parseDate(b.ngayDang) - parseDate(a.ngayDang);
-    });
+    // sort newest
+    result.sort(
+      (a, b) =>
+        parseDate(b.ngayDang).getTime() - parseDate(a.ngayDang).getTime()
+    );
 
     return result;
-  } catch (error) {
-    console.error("Google Sheet Error:", error);
+  } catch (err) {
+    console.error("Google Sheet Error:", err);
     return [];
   }
 }

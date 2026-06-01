@@ -17,7 +17,8 @@ export type BdsItem = {
 
 let cache: BdsItem[] = [];
 let lastFetch = 0;
-const CACHE_TIME = 1000 * 60 * 10; // 10 phút
+
+const CACHE_TIME = 10 * 60 * 1000;
 
 const slugify = (text: string) =>
   (text || "")
@@ -26,23 +27,6 @@ const slugify = (text: string) =>
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)+/g, "");
-
-function normalize(row: any, index: number): BdsItem {
-  return {
-    id: Number(row.id) || index,
-    title: row.title || "",
-    description: row.description || "",
-    price: Number(String(row.price || "").replace(/[^\d]/g, "")) || 0,
-    area: row.area || "",
-    location: row.location || "",
-    images: (row.images || "")
-      .split(",")
-      .map((x: string) => x.trim())
-      .filter(Boolean),
-    slug: slugify(row.title || `bds-${index}`),
-    ngayDang: row.ngayDang || "",
-  };
-}
 
 export async function getBdsData(): Promise<BdsItem[]> {
   const now = Date.now();
@@ -63,14 +47,26 @@ export async function getBdsData(): Promise<BdsItem[]> {
       skipEmptyLines: true,
     });
 
-    const data = (parsed.data as any[]).map(normalize);
+    const raw = parsed.data as any[];
+
+    const data = raw.map((row, index) => ({
+      id: Number(row.id) || index,
+      title: row.title || "",
+      description: row.description || "",
+      price: Number(String(row.price || "").replace(/[^\d]/g, "")) || 0,
+      area: row.area || "",
+      location: row.location || "",
+      images: (row.images || "").split(",").map((x: string) => x.trim()),
+      slug: slugify(row.title || `bds-${index}`),
+      ngayDang: row.ngayDang || "",
+    }));
 
     cache = data;
     lastFetch = now;
 
     return data;
-  } catch (err) {
-    console.error("GoogleSheet error:", err);
-    return cache;
+  } catch (e) {
+    console.error(e);
+    return cache || [];
   }
 }

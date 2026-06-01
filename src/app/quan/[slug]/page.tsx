@@ -65,7 +65,7 @@ export default async function DistrictPage({ params }) {
   const data = await getBdsData();
 
   const filteredData = data.filter(
-    (item) => item.khuVuc && item.khuVuc.trim() === district
+    (item) => item.location && item.location.trim() === district
   );
 
   return (

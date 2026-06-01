@@ -1,50 +1,54 @@
 import Papa from "papaparse";
 
-// ========================
-// GOOGLE SHEET URL
-// ========================
 const SHEET_URL =
   "https://docs.google.com/spreadsheets/d/1-LupBV6uNuUitz4vF6pFv6MupuVDMujafqhjQBNNPTA/export?format=csv";
 
-// ========================
-// TYPES (optional nhưng an toàn)
-// ========================
-export type BdsItem = {
-  id: number;
-  title: string;
-  description: string;
-  price: number;
-  area: string;
-  location: string;
-  images: string[];
-  slug: string;
-  ngayDang: string;
-};
-
-// ========================
-// SLUGIFY
-// ========================
-const slugify = (text: string = "") =>
-  text
+// ==========================
+// AUTO CREATE SLUG UNIQUE
+// ==========================
+function slugify(text) {
+  return (text || "")
+    .toString()
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)+/g, "");
+}
 
-// ========================
-// AUTO UNIQUE SLUG
-// ========================
-function generateUniqueSlugs(data: any[]) {
-  const used = new Map<string, number>();
+// ==========================
+// NORMALIZE DATA
+// ==========================
+function normalize(row, index) {
+  return {
+    id: Number(row.id) || index,
+    title: row.title || "",
+    description: row.description || "",
+    price: Number(String(row.price || row.soGia || "").replace(/[^\d]/g, "")) || 0,
+    area: row.area || "",
+    location: row.location || "",
 
-  return data.map((item, index) => {
-    let base = slugify(item.title || `bds-${index}`);
+    images: (row.images || "")
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean),
 
-    if (!base) base = `bds-${index}`;
+    ngayDang: row.ngayDang || row.date || "",
 
-    const count = used.get(base) || 0;
-    used.set(base, count + 1);
+    slug: slugify(row.title || `bds-${index}`)
+  };
+}
+
+// ==========================
+// UNIQUE SLUG HANDLER
+// ==========================
+function makeUniqueSlugs(items) {
+  const map = new Map();
+
+  return items.map((item) => {
+    const base = item.slug || "bds";
+    const count = map.get(base) || 0;
+    map.set(base, count + 1);
 
     return {
       ...item,
@@ -53,56 +57,16 @@ function generateUniqueSlugs(data: any[]) {
   });
 }
 
-// ========================
-// NORMALIZE DATA
-// ========================
-function normalizeProperty(row: any, index: number): BdsItem {
-  return {
-    id: Number(row.id) || index,
-    title: row.title || "",
-    description: row.description || "",
-
-    price: Number(String(row.price || row.soGia || "").replace(/[^\d]/g, "")) || 0,
-
-    area: row.area || "",
-    location: row.location || "",
-
-    images: (row.images || "")
-      .split(/,|;/)
-      .map((img: string) => img.trim())
-      .filter(Boolean),
-
-    slug: "",
-
-    ngayDang: row.ngayDang || row.date || "",
-  };
-}
-
-// ========================
-// SAFE DATE PARSE
-// ========================
-function parseDate(str: string) {
-  if (!str) return new Date(0);
-
-  const parts = str.split(/[-/]/);
-  if (parts.length !== 3) return new Date(0);
-
-  const [d, m, y] = parts.map(Number);
-  if (isNaN(d) || isNaN(m) || isNaN(y)) return new Date(0);
-
-  return new Date(y, m - 1, d);
-}
-
-// ========================
-// MAIN FUNCTION
-// ========================
-export async function getBdsData(): Promise<BdsItem[]> {
+// ==========================
+// FETCH GOOGLE SHEET DATA
+// ==========================
+export async function getBdsData() {
   try {
     const res = await fetch(SHEET_URL, {
       cache: "no-store",
     });
 
-    if (!res.ok) throw new Error("Fetch Google Sheet failed");
+    if (!res.ok) throw new Error("Cannot fetch Google Sheet");
 
     const csv = await res.text();
 
@@ -111,27 +75,26 @@ export async function getBdsData(): Promise<BdsItem[]> {
       skipEmptyLines: true,
     });
 
-    const raw = parsed.data as any[];
+    const raw = parsed.data || [];
 
-    if (!Array.isArray(raw) || raw.length === 0) return [];
+    if (!Array.isArray(raw)) return [];
 
     // normalize
-    let result: BdsItem[] = raw.map((row, index) =>
-      normalizeProperty(row, index)
-    );
+    let data = raw.map((row, index) => normalize(row, index));
 
-    // auto slug unique
-    result = generateUniqueSlugs(result);
+    // unique slug
+    data = makeUniqueSlugs(data);
 
-    // sort newest
-    result.sort(
-      (a, b) =>
-        parseDate(b.ngayDang).getTime() - parseDate(a.ngayDang).getTime()
-    );
+    // sort newest first
+    data.sort((a, b) => {
+      const d1 = new Date(a.ngayDang || 0).getTime();
+      const d2 = new Date(b.ngayDang || 0).getTime();
+      return d2 - d1;
+    });
 
-    return result;
-  } catch (err) {
-    console.error("Google Sheet Error:", err);
+    return data;
+  } catch (error) {
+    console.error("Google Sheet Error:", error);
     return [];
   }
 }

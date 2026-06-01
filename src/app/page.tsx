@@ -1,12 +1,12 @@
 import { getBdsData } from "@/lib/googleSheets";
 import ListingSection from "@/components/ListingSection";
 
-export default async function HomePage() {
+export default async function Home() {
   const initialData = await getBdsData();
 
   return (
     <main>
-      <ListingSection bdsData={initialData} />
+      <ListingSection initialData={initialData} />
     </main>
   );
 }

@@ -1,3 +1,4 @@
+export const revalidate = 60;
 import ListingSection from "@/components/ListingSection";
 import { getBdsData } from "@/lib/googleSheets";
 import { notFound } from "next/navigation";

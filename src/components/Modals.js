@@ -1,203 +1,128 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
-import { X, ShieldCheck, MapPin, Calendar, Layers, Map, FileText } from 'lucide-react';
+import { useState } from 'react';
 
-export default function Modals({ selectedProduct, onClose, tinhThoiGianCachDay, layMangHinhAnh }) {
-  const [showKyGui, setShowKyGui] = useState(false);
-  const [soDoUrl, setSoDoUrl] = useState(null); // Quản lý trạng thái popup phóng to ảnh sổ đỏ
-  const [kgTen, setKgTen] = useState('');
-  const [kgDiaChi, setKgDiaChi] = useState('');
-  const [kgGia, setKgGia] = useState('');
-  
-  const khungModalRef = useRef(null);
-  const slideRef = useRef(null);
-  const touchStartX = useRef(0);
-  const touchStartY = useRef(0);
+export default function Modals() {
+  // Quản lý trạng thái đóng/mở của 3 Popup độc lập
+  const [activeModal, setActiveModal] = useState(null); // 'gallery' | 'map' | 'consignment' | null
+  const [currentImgIndex, setCurrentImgIndex] = useState(0);
 
-  useEffect(() => {
-    const open = () => setShowKyGui(true);
-    window.addEventListener('open-modal-kygui', open);
-    return () => window.removeEventListener('open-modal-kygui', open);
-  }, []);
+  const sampleImages = [
+    'https://images.unsplash.com/photo-1564013799919-ab600027ffc6',
+    'https://images.unsplash.com/photo-1580587771525-78b9dba3b914',
+    'https://images.unsplash.com/photo-1600585154340-be6161a56a0c'
+  ];
 
-  // Xử lý vuốt đóng modal trên iPhone (Swipe to close)
-  useEffect(() => {
-    const modalElement = khungModalRef.current;
-    if (!modalElement) return;
-
-    const handleTouchStart = (e) => {
-      touchStartX.current = e.changedTouches[0].screenX;
-      touchStartY.current = e.changedTouches[0].screenY;
-    };
-
-    const handleTouchEnd = (e) => {
-      if (e.target.closest('.image-slider-container')) return;
-
-      const touchEndX = e.changedTouches[0].screenX;
-      const touchEndY = e.changedTouches[0].screenY;
-      const khoangCachX = touchEndX - touchStartX.current;
-      const khoangCachY = Math.abs(touchEndY - touchStartY.current);
-
-      if (khoangCachX > 80 && khoangCachY < 35) {
-        if (touchStartX.current < 50) return; 
-        onClose();
-      }
-    };
-
-    modalElement.addEventListener('touchstart', handleTouchStart, { passive: true });
-    modalElement.addEventListener('touchend', handleTouchEnd, { passive: true });
-
-    if (selectedProduct) document.body.style.overflow = 'hidden';
-
-    return () => {
-      modalElement.removeEventListener('touchstart', handleTouchStart);
-      modalElement.removeEventListener('touchend', handleTouchEnd);
-      document.body.style.overflow = '';
-    };
-  }, [selectedProduct, onClose]);
-
-  const chuyenAnhSlide = (huong) => {
-    if (!slideRef.current) return;
-    const doRongKhung = slideRef.current.clientWidth;
-    slideRef.current.scrollBy({ 
-      left: huong === 'phai' ? doRongKhung : -doRongKhung, 
-      behavior: 'smooth' 
-    });
-  };
-
-  const closeKyGui = () => setShowKyGui(false);
-
-  const handleKyGuiSubmit = (e) => {
+  // Xử lý gửi Form Ký Gửi thẳng sang Zalo
+  const handleConsignmentSubmit = (e) => {
     e.preventDefault();
-    const txt = `Chào anh Huy, tôi muốn ký gửi nhà đất:\n- Liên hệ: ${kgTen}\n- Địa chỉ: ${kgDiaChi}\n- Giá: ${kgGia || "Thương lượng"}`;
-    navigator.clipboard.writeText(txt).then(() => {
-      alert("📋 Đã sao chép thông tin! Hệ thống đang mở Zalo, bạn hãy bấm DÁN (Paste) để gửi.");
-      window.open("https://zalo.me/0931555551", "_blank");
-      closeKyGui();
-    });
+    const formData = new FormData(e.target);
+    const name = formData.get('fullName');
+    const phone = formData.get('phoneNumber');
+    const details = formData.get('propertyDetails');
+    
+    const message = `Xin chào anh Huy, tôi muốn ký gửi BĐS:\n- Họ tên: ${name}\n- SĐT: ${phone}\n- Thông tin: ${details}`;
+    const zaloUrl = `https://zalo.me/0905555xxx?text=${encodeURIComponent(message)}`; // Điền SĐT anh Huy
+    window.open(zaloUrl, '_blank');
+    setActiveModal(null);
   };
-
-  const danhSachAnh = selectedProduct ? layMangHinhAnh(selectedProduct.anh) : [];
-  const coVideo = selectedProduct && selectedProduct.videoUrl;
-  const tongSoMucMedia = danhSachAnh.length + (coVideo ? 1 : 0);
 
   return (
     <>
-      {/* 1. CHI TIẾT SẢN PHẨM POPUP */}
-      {selectedProduct && (
-        <div className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div 
-            ref={khungModalRef} 
-            className="bg-white w-full sm:max-w-xl rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-2xl relative max-h-[92vh] sm:max-h-[88vh] flex flex-col text-slate-800 will-change-transform transform transition-transform"
-            style={{ WebkitBackfaceVisibility: 'hidden', backfaceVisibility: 'hidden' }}
-          >
-            <button 
-              onClick={onClose} 
-              className="absolute top-4 right-4 z-30 w-8 h-8 bg-slate-900/60 backdrop-blur-md text-white rounded-full flex items-center justify-center hover:bg-slate-900 transition-all shadow active:scale-90"
-            >
-              <X className="w-4 h-4 stroke-[3]" />
-            </button>
+      {/* Nút Demo cố định ở góc màn hình để kích hoạt Popup nhanh (Khớp tính năng bản gốc) */}
+      <div className="fixed bottom-6 left-6 z-50 flex flex-col space-y-2">
+        <button 
+          onClick={() => { setActiveModal('gallery'); setCurrentImgIndex(0); }}
+          className="bg-black/80 hover:bg-black text-white text-xs px-3 py-2 rounded-full shadow-lg transition"
+        >
+          📷 Xem Ảnh Dự Án
+        </button>
+        <button 
+          onClick={() => setActiveModal('map')}
+          className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-2 rounded-full shadow-lg transition"
+        >
+          🗺️ Bản Vẽ Trích Lục
+        </button>
+        <button 
+          onClick={() => setActiveModal('consignment')}
+          className="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-2 rounded-full shadow-lg transition"
+        >
+          ✍️ Ký Gửi Nhà Đất
+        </button>
+      </div>
 
-            <div className="overflow-y-auto flex-1 no-scrollbar">
-              {/* VÙNG TRÌNH CHIẾU MEDIA */}
-              <div className="relative aspect-[16/10] bg-slate-100 image-slider-container group">
-                <div ref={slideRef} className="w-full h-full flex overflow-x-auto snap-x snap-mandatory no-scrollbar">
-                  {coVideo && (
-                    <div className="w-full h-full flex-shrink-0 snap-start snap-always relative">
-                      <iframe className="w-full h-full border-0" src={selectedProduct.videoUrl} allowFullScreen></iframe>
-                    </div>
-                  )}
-                  {danhSachAnh.map((url, idx) => (
-                    <img key={idx} src={url} className="w-full h-full object-cover flex-shrink-0 snap-start snap-always" alt="Hình thực tế" />
-                  ))}
-                </div>
-
-                {tongSoMucMedia > 1 && (
-                  <>
-                    <button onClick={() => chuyenAnhSlide('trai')} className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 bg-black/50 text-white rounded-full flex items-center justify-center font-bold text-lg active:scale-90 select-none">‹</button>
-                    <button onClick={() => chuyenAnhSlide('phai')} className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 bg-black/50 text-white rounded-full flex items-center justify-center font-bold text-lg active:scale-90 select-none">›</button>
-                    <div className="bg-slate-900/70 text-white text-[10px] font-bold px-2.5 py-1 rounded-md absolute top-4 left-4 z-10 pointer-events-none flex items-center gap-1 shadow-sm uppercase tracking-wider">
-                      <Layers className="w-3 h-3 text-amber-400" /> Giỏ hàng: {coVideo ? '1 Video & ' : ''}{danhSachAnh.length} Ảnh
-                    </div>
-                  </>
-                )}
+      {activeModal && (
+        <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-fadeIn">
+          
+          {/* 1. MODAL SLIDE ẢNH CHI TIẾT */}
+          {activeModal === 'gallery' && (
+            <div className="bg-white rounded-xl overflow-hidden max-w-3xl w-full p-4 relative shadow-2xl">
+              <button onClick={() => setActiveModal(null)} className="absolute top-4 right-4 text-gray-700 hover:text-black font-bold text-2xl z-10">✕</button>
+              <h3 className="text-lg font-bold mb-4 text-gray-900">Thư Viện Ảnh Thực Tế</h3>
+              <div className="relative h-64 md:h-96 w-full bg-gray-100 rounded-lg overflow-hidden">
+                <img src={sampleImages[currentImgIndex]} alt="BĐS" className="object-cover w-full h-full transition duration-300" />
+                <button 
+                  onClick={() => setCurrentImgIndex(prev => prev === 0 ? sampleImages.length - 1 : prev - 1)}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black"
+                >
+                  ◀
+                </button>
+                <button 
+                  onClick={() => setCurrentImgIndex(prev => prev === sampleImages.length - 1 ? 0 : prev + 1)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black"
+                >
+                  ▶
+                </button>
               </div>
-
-              <div className="p-6">
-                <div className="flex items-center justify-between">
-                  <span className="bg-amber-100 text-amber-900 font-black px-3 py-1 rounded-xl shadow-sm">{selectedProduct.gia}</span>
-                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-100 flex items-center"><ShieldCheck className="w-4 h-4 text-emerald-500 mr-1" />{selectedProduct.phapLy || 'Sổ hồng sẵn sàng'}</span>
-                </div>
-                
-                <h1 className="text-base sm:text-lg font-extrabold mt-4 leading-snug">{selectedProduct.tieude}</h1>
-                
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-slate-400 text-xs mt-2 border-b border-slate-100 pb-4 font-semibold">
-                  <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-amber-500" />{selectedProduct.khuVucFull}</span>
-                  <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />Đăng: {selectedProduct.ngayDang}</span>
-                  <span className="text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded-md text-[10px] uppercase">{tinhThoiGianCachDay(selectedProduct.ngayDang)}</span>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2 my-5 p-3.5 bg-slate-50 border border-slate-100 rounded-xl text-sm text-slate-600 text-center font-semibold shadow-inner">
-                  <div><div className="text-slate-400 text-[11px] font-bold uppercase mb-0.5 tracking-wider">Diện tích</div><strong className="text-slate-900 text-sm sm:text-base">{selectedProduct.dienTich}</strong></div>
-                  <div><div className="text-slate-400 text-[11px] font-bold uppercase mb-0.5 tracking-wider">Cấu trúc</div><strong className="text-slate-900 text-sm sm:text-base">{selectedProduct.phongNgu || 'Đất ở'}</strong></div>
-                  <div><div className="text-slate-400 text-[11px] font-bold uppercase mb-0.5 tracking-wider">Hướng</div><strong className="text-slate-900 text-sm sm:text-base">{selectedProduct.huong || 'Chưa rõ'}</strong></div>
-                </div>
-
-                {/* KHÔI PHỤC: Bộ đôi nút bấm Vị trí Bản đồ và Ảnh Sổ Đỏ của bản gốc */}
-                <div className="grid grid-cols-2 gap-3 mb-5">
-                  {selectedProduct.linkMap ? (
-                    <a href={selectedProduct.linkMap} target="_blank" rel="noopener noreferrer" className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold border border-emerald-200 rounded-xl py-2.5 px-3 text-center text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-colors shadow-sm">
-                      <Map className="w-4 h-4" /> Bản Đồ Vị Trí
-                    </a>
-                  ) : null}
-                  {selectedProduct.anhSoDo ? (
-                    <button onClick={() => setSoDoUrl(selectedProduct.anhSoDo)} className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold border border-indigo-200 rounded-xl py-2.5 px-3 text-center text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-colors shadow-sm">
-                      <FileText className="w-4 h-4" /> Sổ Đỏ Bản Vẽ
-                    </button>
-                  ) : null}
-                </div>
-
-                <h4 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider mb-2">Mô tả thực tế nhà đất:</h4>
-                <p className="text-slate-700 text-sm leading-relaxed whitespace-pre-line text-justify mb-6">{selectedProduct.moTa}</p>
-                
-                <div className="flex gap-3 mt-6 border-t pt-4">
-                  <a href="tel:0931555551" className="flex-1 bg-slate-900 text-white text-center py-3 rounded-xl font-bold flex items-center justify-center gap-1">Gọi ngay</a>
-                  <a href="https://zalo.me/0931555551" target="_blank" className="flex-1 bg-blue-600 text-white text-center py-3 rounded-xl font-bold flex items-center justify-center gap-1">Zalo</a>
-                </div>
+              <div className="flex justify-center space-x-2 mt-4">
+                {sampleImages.map((_, i) => (
+                  <span key={i} className={`h-2 w-2 rounded-full ${i === currentImgIndex ? 'bg-blue-600' : 'bg-gray-300'}`} />
+                ))}
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* KHÔI PHỤC: POPUP PHÓNG TO XEM SỔ ĐỎ CHUYÊN BIỆT */}
-      {soDoUrl && (
-        <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <button 
-            onClick={() => setSoDoUrl(null)} 
-            className="absolute top-4 right-4 z-50 w-10 h-10 bg-white/20 hover:bg-white/40 text-white rounded-full flex items-center justify-center transition-all shadow active:scale-90"
-          >
-            <X className="w-6 h-6 stroke-[2.5]" />
-          </button>
-          <div className="max-w-3xl w-full max-h-[85vh] flex items-center justify-center overflow-hidden rounded-xl">
-            <img src={soDoUrl} alt="Bản vẽ sơ đồ sổ đỏ chi tiết" className="max-w-full max-h-[85vh] object-contain shadow-2xl rounded-xl animate-in zoom-in-95 duration-200" />
-          </div>
-        </div>
-      )}
+          {/* 2. MODAL XEM BẢN VẼ TRÍCH LỤC QUY HOẠCH */}
+          {activeModal === 'map' && (
+            <div className="bg-white rounded-xl overflow-hidden max-w-2xl w-full p-4 relative shadow-2xl">
+              <button onClick={() => setActiveModal(null)} className="absolute top-4 right-4 text-gray-700 hover:text-black font-bold text-2xl z-10">✕</button>
+              <h3 className="text-lg font-bold mb-2 text-gray-900">Sơ Đồ Bản Vẽ Trích Lục Quy Hoạch</h3>
+              <p className="text-xs text-gray-500 mb-4">Bạn có thể dùng tổ hợp phím hoặc cử chỉ thu phóng trên trình duyệt để xem rõ các mốc lộ giới.</p>
+              <div className="overflow-auto border rounded max-h-[70vh] bg-gray-50 flex items-center justify-center">
+                <img 
+                  src="https://images.unsplash.com/photo-1524661135-423995f22d0b" 
+                  alt="Sơ đồ quy hoạch" 
+                  className="max-w-none w-[150%] h-auto cursor-zoom-in"
+                />
+              </div>
+            </div>
+          )}
 
-      {/* POPUP KÝ GỬI */}
-      {showKyGui && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-sm rounded-2xl p-6 relative text-slate-800">
-            <button onClick={closeKyGui} className="absolute top-4 right-4 text-slate-400"><X className="w-4 h-4" /></button>
-            <h3 className="font-bold text-slate-900 text-base mb-4">Ký Gửi Nhanh Trong 10s</h3>
-            <form onSubmit={handleKyGuiSubmit} className="space-y-3 text-xs">
-              <input type="text" required placeholder="Tên & SĐT của bạn" value={kgTen} onChange={e => setKgTen(e.target.value)} className="w-full border rounded-xl p-3 focus:outline-none" />
-              <input type="text" required placeholder="Địa chỉ bất động sản" value={kgDiaChi} onChange={e => setKgDiaChi(e.target.value)} className="w-full border rounded-xl p-3 focus:outline-none" />
-              <input type="text" placeholder="Giá mong muốn (Không bắt buộc)" value={kgGia} onChange={e => setKgGia(e.target.value)} className="w-full border rounded-xl p-3 focus:outline-none" />
-              <button type="submit" className="w-full bg-slate-900 text-white font-bold py-3 rounded-xl">Xác nhận ký gửi</button>
-            </form>
-          </div>
+          {/* 3. MODAL FORM KÝ GỬI CHUYỂN TRỰC TIẾP QUA ZALO ANH HUY */}
+          {activeModal === 'consignment' && (
+            <div className="bg-white rounded-xl p-6 max-w-md w-full relative shadow-2xl">
+              <button onClick={() => setActiveModal(null)} className="absolute top-4 right-4 text-gray-500 hover:text-black text-xl">✕</button>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Đăng Ký Ký Gửi Nhà Đất</h3>
+              <p className="text-sm text-gray-600 mb-4">Thông tin ký gửi của anh/chị sẽ được chuyển trực tiếp tới hệ thống xử lý tin của Trần Huy Land.</p>
+              <form onSubmit={handleConsignmentSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">HỌ VÀ TÊN <span className="text-red-500">*</span></label>
+                  <input type="text" name="fullName" required placeholder="Nguyễn Văn A" className="w-full border p-2.5 rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">SỐ ĐIỆN THOẠI (ZALO) <span className="text-red-500">*</span></label>
+                  <input type="tel" name="phoneNumber" required placeholder="0905xxxxxx" className="w-full border p-2.5 rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">THÔNG TIN CHI TIẾT BĐS <span className="text-red-500">*</span></label>
+                  <textarea name="propertyDetails" rows="3" required placeholder="Địa chỉ, diện tích, giá mong muốn..." className="w-full border p-2.5 rounded-lg text-sm"></textarea>
+                </div>
+                <button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg text-sm transition">
+                  🚀 Xác Nhận Gửi Qua Zalo
+                </button>
+              </form>
+            </div>
+          )}
+
         </div>
       )}
     </>

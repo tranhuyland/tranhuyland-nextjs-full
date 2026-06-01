@@ -1,19 +1,24 @@
 import Link from "next/link";
+import type { BdsItem } from "@/lib/googleSheets";
 
-export default function ListingSection({ bdsData }) {
+export default function ListingSection({
+  initialData,
+}: {
+  initialData: BdsItem[];
+}) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      {bdsData?.map((item) => (
+    <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {initialData.map((item) => (
         <Link
-          key={item.slug}
+          key={item.id}
           href={`/nha-dat/${item.slug}`}
-          className="border p-4 rounded-lg"
+          className="border rounded-xl p-4"
         >
-          <h2 className="font-bold">{item.title}</h2>
-          <p>{item.price?.toLocaleString()} đ</p>
+          <h3 className="font-bold">{item.title}</h3>
+          <p>{item.price}</p>
           <p>{item.location}</p>
         </Link>
       ))}
-    </div>
+    </section>
   );
 }

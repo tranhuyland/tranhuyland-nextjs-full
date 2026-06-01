@@ -1,8 +1,3 @@
-import Papa from "papaparse";
-
-const SHEET_URL =
-  "https://docs.google.com/spreadsheets/d/1-LupBV6uNuUitz4vF6pFv6MupuVDMujafqhjQBNNPTA/export?format=csv";
-
 export type BdsItem = {
   id: number;
   title: string;
@@ -15,74 +10,57 @@ export type BdsItem = {
   ngayDang: string;
 };
 
-const slugify = (text: string) =>
-  (text || "")
+const SHEET_URL =
+  "https://docs.google.com/spreadsheets/d/1-LupBV6uNuUitz4vF6pFv6MupuVDMujafqhjQBNNPTA/gviz/tq?tqx=out:json";
+
+function slugify(text: string) {
+  return (text || "")
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)+/g, "");
+}
 
-// 🔥 IMPORTANT: cache nhẹ để tránh dynamic error
-let cache: BdsItem[] | null = null;
-let lastFetch = 0;
+function parseGoogleJson(text: string) {
+  const json = JSON.parse(text.substring(47).slice(0, -2));
 
-function normalize(row: any, index: number): BdsItem {
-  return {
-    id: Number(row.id) || index,
-    title: row.title || "",
-    description: row.description || "",
-    price: Number(String(row.price || row.soGia || "").replace(/[^\d]/g, "")) || 0,
-    area: row.area || "",
-    location: row.location || "",
-    images: (row.images || "")
-      .split(",")
-      .map((i: string) => i.trim())
-      .filter(Boolean),
-    slug: slugify(row.title || `bds-${index}`),
-    ngayDang: row.ngayDang || row.date || "",
-  };
+  const cols = json.table.cols;
+  const rows = json.table.rows;
+
+  return rows.map((r: any, i: number) => {
+    const c = r.c;
+
+    return {
+      id: i,
+      title: c?.[0]?.v || "",
+      description: c?.[1]?.v || "",
+      price: Number(c?.[2]?.v || 0),
+      area: c?.[3]?.v || "",
+      location: c?.[4]?.v || "",
+      images: (c?.[5]?.v || "").split(",").filter(Boolean),
+      slug: slugify(c?.[0]?.v || `bds-${i}`),
+      ngayDang: c?.[6]?.v || "",
+    };
+  });
 }
 
 export async function getBdsData(): Promise<BdsItem[]> {
   try {
-    // 🔥 cache 60s để tránh build lỗi + tăng performance
-    const now = Date.now();
-    if (cache && now - lastFetch < 60000) return cache;
-
-    const res = await fetch(SHEET_URL);
-
-    if (!res.ok) return cache || [];
-
-    const csv = await res.text();
-
-    const parsed = Papa.parse(csv, {
-      header: true,
-      skipEmptyLines: true,
+    const res = await fetch(SHEET_URL, {
+      cache: "no-store",
     });
 
-    const raw = parsed.data as any[];
+    const text = await res.text();
 
-    const data = raw.map(normalize);
+    if (!text.includes("table")) {
+      console.error("Invalid Google response");
+      return [];
+    }
 
-    const used = new Map<string, number>();
-
-    const unique = data.map((item) => {
-      const count = used.get(item.slug) || 0;
-      used.set(item.slug, count + 1);
-
-      return {
-        ...item,
-        slug: count === 0 ? item.slug : `${item.slug}-${count + 1}`,
-      };
-    });
-
-    cache = unique;
-    lastFetch = now;
-
-    return unique;
+    return parseGoogleJson(text);
   } catch (e) {
-    console.error("GoogleSheet error:", e);
-    return cache || [];
+    console.error("Google Sheets error:", e);
+    return [];
   }
 }

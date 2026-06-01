@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { getBdsData } from "@/lib/googleSheets";
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";

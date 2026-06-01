@@ -1,56 +1,92 @@
 import Papa from "papaparse";
 
+// ========================
+// GOOGLE SHEET URL
+// ========================
 const SHEET_URL =
   "https://docs.google.com/spreadsheets/d/1-LupBV6uNuUitz4vF6pFv6MupuVDMujafqhjQBNNPTA/export?format=csv";
 
-// 🔥 normalize dữ liệu để UI không bao giờ lỗi
+// ========================
+// SLUGIFY (SEO chuẩn)
+// ========================
+const slugify = (text) =>
+  text
+    ?.toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "");
+
+// ========================
+// AUTO UNIQUE SLUG
+// ========================
+function generateUniqueSlugs(data) {
+  const used = new Map();
+
+  return data.map((item, index) => {
+    let base = slugify(item.title || `bds-${index}`);
+
+    if (!base) base = `bds-${index}`;
+
+    let count = used.get(base) || 0;
+
+    let slug = count === 0 ? base : `${base}-${count + 1}`;
+
+    used.set(base, count + 1);
+
+    return {
+      ...item,
+      slug,
+    };
+  });
+}
+
+// ========================
+// NORMALIZE PROPERTY
+// ========================
 function normalizeProperty(row, index) {
   return {
     id: Number(row.id) || index,
-
     title: row.title || "",
-
     description: row.description || "",
 
-    price: Number(row.soGia || row.price) || 0,
+    price: Number(String(row.price || row.soGia || "").replace(/[^\d]/g, "")) || 0,
 
     area: row.area || "",
-
     location: row.location || "",
 
-    // 🔥 FIX QUAN TRỌNG NHẤT: images luôn là array
-    images: row.images
-      ? row.images
-          .split(",")
-          .map((img) => img.trim())
-          .filter(Boolean)
-      : [],
-
-    // 🔥 sổ đỏ fallback nhiều tên cột khác nhau
-    sodo: row.sodo || row.so_do || row.giayto || null,
+    images: (row.images || "")
+      .split(/,|;/)
+      .map((img) => img.trim())
+      .filter((img) => img),
 
     ngayDang: row.ngayDang || row.date || "",
   };
 }
 
-// 🔥 parse date an toàn
+// ========================
+// PARSE DATE SAFE
+// ========================
 function parseDate(dateStr) {
   if (!dateStr) return new Date(0);
 
   const parts = dateStr.split(/[-/]/);
   if (parts.length !== 3) return new Date(0);
 
-  const [d, m, y] = parts.map((x) => parseInt(x, 10));
+  const [d, m, y] = parts.map(Number);
 
   if (isNaN(d) || isNaN(m) || isNaN(y)) return new Date(0);
 
   return new Date(y, m - 1, d);
 }
 
+// ========================
+// MAIN FUNCTION
+// ========================
 export async function getBdsData() {
   try {
     const response = await fetch(SHEET_URL, {
-      next: { revalidate: 60 },
+      cache: "no-store",
     });
 
     if (!response.ok) {
@@ -59,27 +95,33 @@ export async function getBdsData() {
 
     const csv = await response.text();
 
-    // 🔥 dùng parser chuẩn (KHÔNG tự parse nữa)
-    const { data } = Papa.parse(csv, {
+    const parsed = Papa.parse(csv, {
       header: true,
       skipEmptyLines: true,
     });
 
-    if (!data || !Array.isArray(data)) return [];
+    const data = parsed.data;
 
-    // 🔥 normalize toàn bộ data
-    const result = data.map((row, index) =>
+    if (!Array.isArray(data) || data.length === 0) {
+      return [];
+    }
+
+    // normalize
+    let result = data.map((row, index) =>
       normalizeProperty(row, index)
     );
 
-    // 🔥 sort theo ngày đăng mới nhất
+    // auto slug unique
+    result = generateUniqueSlugs(result);
+
+    // sort mới nhất
     result.sort((a, b) => {
       return parseDate(b.ngayDang) - parseDate(a.ngayDang);
     });
 
     return result;
   } catch (error) {
-    console.error("Lỗi Google Sheet Reader:", error);
+    console.error("Google Sheet Error:", error);
     return [];
   }
 }

@@ -1,6 +1,5 @@
-import { getBdsData } from "@/lib/googleSheets";
-
 export const revalidate = 600;
+import { getBdsData } from "@/lib/googleSheets";
 
 export default async function sitemap() {
   const data = await getBdsData();

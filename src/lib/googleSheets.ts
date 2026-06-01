@@ -15,11 +15,6 @@ export type BdsItem = {
   ngayDang: string;
 };
 
-let cache: BdsItem[] = [];
-let lastFetch = 0;
-
-const CACHE_TIME = 10 * 60 * 1000;
-
 const slugify = (text: string) =>
   (text || "")
     .toLowerCase()
@@ -28,17 +23,36 @@ const slugify = (text: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)+/g, "");
 
+// 🔥 IMPORTANT: cache nhẹ để tránh dynamic error
+let cache: BdsItem[] | null = null;
+let lastFetch = 0;
+
+function normalize(row: any, index: number): BdsItem {
+  return {
+    id: Number(row.id) || index,
+    title: row.title || "",
+    description: row.description || "",
+    price: Number(String(row.price || row.soGia || "").replace(/[^\d]/g, "")) || 0,
+    area: row.area || "",
+    location: row.location || "",
+    images: (row.images || "")
+      .split(",")
+      .map((i: string) => i.trim())
+      .filter(Boolean),
+    slug: slugify(row.title || `bds-${index}`),
+    ngayDang: row.ngayDang || row.date || "",
+  };
+}
+
 export async function getBdsData(): Promise<BdsItem[]> {
-  const now = Date.now();
-
-  if (cache.length > 0 && now - lastFetch < CACHE_TIME) {
-    return cache;
-  }
-
   try {
-    const res = await fetch(SHEET_URL, {
-      next: { revalidate: 300 },
-    });
+    // 🔥 cache 60s để tránh build lỗi + tăng performance
+    const now = Date.now();
+    if (cache && now - lastFetch < 60000) return cache;
+
+    const res = await fetch(SHEET_URL);
+
+    if (!res.ok) return cache || [];
 
     const csv = await res.text();
 
@@ -49,24 +63,26 @@ export async function getBdsData(): Promise<BdsItem[]> {
 
     const raw = parsed.data as any[];
 
-    const data = raw.map((row, index) => ({
-      id: Number(row.id) || index,
-      title: row.title || "",
-      description: row.description || "",
-      price: Number(String(row.price || "").replace(/[^\d]/g, "")) || 0,
-      area: row.area || "",
-      location: row.location || "",
-      images: (row.images || "").split(",").map((x: string) => x.trim()),
-      slug: slugify(row.title || `bds-${index}`),
-      ngayDang: row.ngayDang || "",
-    }));
+    const data = raw.map(normalize);
 
-    cache = data;
+    const used = new Map<string, number>();
+
+    const unique = data.map((item) => {
+      const count = used.get(item.slug) || 0;
+      used.set(item.slug, count + 1);
+
+      return {
+        ...item,
+        slug: count === 0 ? item.slug : `${item.slug}-${count + 1}`,
+      };
+    });
+
+    cache = unique;
     lastFetch = now;
 
-    return data;
+    return unique;
   } catch (e) {
-    console.error(e);
+    console.error("GoogleSheet error:", e);
     return cache || [];
   }
 }
